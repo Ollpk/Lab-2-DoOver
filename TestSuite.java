@@ -1,5 +1,6 @@
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public abstract class TestSuite {
@@ -20,11 +21,15 @@ public abstract class TestSuite {
 
     void expect(boolean condition, String message) {
         if (condition) {
-            System.out.print(green(" \u2713"));
+            System.out.print(green(" [PASS]"));
         } else {
             failures++;
-            System.err.print(red(" \u274C " + message));
+            System.err.print(red(" [FAIL] " + message));
         }
+    }
+
+    void expectEqual(int actual, int expected) {
+        expect(actual == expected, "EXPECTED " + expected + " BUT GOT " + actual);
     }
 
     void expectWithin(double value, double expected, double tolerance) {
@@ -32,14 +37,22 @@ public abstract class TestSuite {
         expect(Math.abs(expected - value) <= tolerance, "BUT GOT " + value);
     }
 
+    void expectEqual(Object actual, Object expected) {
+        expect(Objects.deepEquals(actual, expected), "EXPECTED " + expected + " BUT GOT " + actual);
+    }
+
+    void expectMatch(String string, String pattern) {
+        expect(string.matches(pattern), string + " DOES NOT MATCH " + pattern);
+    }
+
     void expectThrows(Runnable code, Class<?> expectedClass, String expectedMessage) {
         System.out.print(" should throw " + expectedClass.getSimpleName());
         try {
             code.run();
-            expect(false, " BUT DID NOT THROW");
+            expect(false, "BUT DID NOT THROW");
         } catch (Exception e) {
-            expect(expectedClass.isInstance(e), " BUT THREW " + e.getClass().getSimpleName());
-            System.out.print(" with message \"" + expectedMessage + "\"");
+            expect(expectedClass.isInstance(e), "BUT THREW " + e.getClass().getSimpleName());
+            System.out.print("\n    with message \"" + expectedMessage + "\"");
             expect(e.getMessage().equals(expectedMessage), " BUT GOT \"" + e.getMessage() + "\"");
         }
     }
@@ -75,7 +88,7 @@ public abstract class TestSuite {
         for (var test: suite.getTests()) {
             suite.totalTests += 1;
             System.out.println();
-            System.out.print(test.name);
+            System.out.print("• " + test.name);
             try {
                 test.code.run();
             } catch (Exception e) {
@@ -83,12 +96,11 @@ public abstract class TestSuite {
                 System.err.print(red(" \u2620 " + e.getMessage()));
             }
         }
-        System.out.println();
-        System.out.println("-".repeat(80));
+        System.out.printf("%n%s%n", "-".repeat(80));
         var successes = suite.totalTests - suite.failures - suite.errors;
         System.out.printf("Total  : %d%n", suite.totalTests);
-        System.out.printf(green("Passed : %d%n"), successes);
-        System.out.printf(red("Failed : %d%n"), suite.failures);
-        System.out.printf(red("Errors : %d%n"), suite.errors);
+        if (successes > 0) System.out.printf(green("Passed : %d%n"), successes);
+        if (suite.failures > 0) System.out.printf(red("Failed : %d%n"), suite.failures);
+        if (suite.errors > 0) System.out.printf(red("Errors : %d%n"), suite.errors);
     }
 }
